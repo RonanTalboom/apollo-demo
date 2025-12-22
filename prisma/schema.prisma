@@ -7,6 +7,12 @@ generator client {
   previewFeatures = ["driverAdapters"]
 }
 
+generator pothos {
+  provider     = "prisma-pothos-types"
+  output       = "../src/generated/pothos-types.ts"
+  clientOutput = "./prisma"
+}
+
 datasource db {
   provider = "sqlite"
   url      = env("DATABASE_URL")

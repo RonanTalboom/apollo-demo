@@ -7,15 +7,21 @@ const emailSchema = z.string().email('Invalid email format').max(255, 'Email mus
 const nameSchema = z.string().max(100, 'Name must be less than 100 characters').nullish();
 const idSchema = z.number().int().positive('ID must be a positive integer');
 
-// User data type
-export interface UserData {
-  id: number;
-  email: string;
-  name: string | null;
-}
-
-// Define User type - exported for use in other schemas
-export const UserType = builder.objectRef<UserData>('User');
+// User type - generated from Prisma model
+export const UserType = builder.prismaObject('User', {
+  description: 'A user in the system',
+  fields: (t) => ({
+    id: t.exposeInt('id'),
+    email: t.exposeString('email'),
+    name: t.exposeString('name', { nullable: true }),
+    posts: t.relation('posts', {
+      description: 'Posts authored by this user',
+      query: {
+        orderBy: { createdAt: 'desc' },
+      },
+    }),
+  }),
+});
 
 // Input types
 const CreateUserInput = builder.inputType('CreateUserInput', {
@@ -62,41 +68,19 @@ function handlePrismaError(error: unknown): never {
   throw error;
 }
 
-// Register User object type - fields added after Post is defined
-export function registerUserType(PostType: ReturnType<typeof builder.objectRef>) {
-  builder.objectType(UserType, {
-    description: 'A user in the system',
-    fields: (t) => ({
-      id: t.exposeInt('id'),
-      email: t.exposeString('email'),
-      name: t.exposeString('name', { nullable: true }),
-      posts: t.field({
-        type: [PostType],
-        description: 'Posts authored by this user',
-        resolve: async (user, _args, ctx) => {
-          return ctx.prisma.post.findMany({
-            where: { authorId: user.id },
-            orderBy: { createdAt: 'desc' },
-          });
-        },
-      }),
-    }),
-  });
-}
-
 // Queries
 builder.queryField('users', (t) =>
-  t.field({
+  t.prismaField({
     type: [UserType],
     description: 'Get all users',
-    resolve: async (_parent, _args, ctx) => {
-      return ctx.prisma.user.findMany();
+    resolve: (query, _parent, _args, ctx) => {
+      return ctx.prisma.user.findMany({ ...query });
     },
   })
 );
 
 builder.queryField('user', (t) =>
-  t.field({
+  t.prismaField({
     type: UserType,
     nullable: true,
     description: 'Get a user by ID',
@@ -106,8 +90,9 @@ builder.queryField('user', (t) =>
         validate: idSchema,
       }),
     },
-    resolve: async (_parent, args, ctx) => {
+    resolve: (query, _parent, args, ctx) => {
       return ctx.prisma.user.findUnique({
+        ...query,
         where: { id: args.id },
       });
     },
@@ -115,7 +100,7 @@ builder.queryField('user', (t) =>
 );
 
 builder.queryField('userByEmail', (t) =>
-  t.field({
+  t.prismaField({
     type: UserType,
     nullable: true,
     description: 'Get a user by email',
@@ -125,8 +110,9 @@ builder.queryField('userByEmail', (t) =>
         validate: emailSchema,
       }),
     },
-    resolve: async (_parent, args, ctx) => {
+    resolve: (query, _parent, args, ctx) => {
       return ctx.prisma.user.findUnique({
+        ...query,
         where: { email: args.email.toLowerCase().trim() },
       });
     },
@@ -135,15 +121,16 @@ builder.queryField('userByEmail', (t) =>
 
 // Mutations
 builder.mutationField('createUser', (t) =>
-  t.field({
+  t.prismaField({
     type: UserType,
     description: 'Create a new user',
     args: {
       input: t.arg({ type: CreateUserInput, required: true }),
     },
-    resolve: async (_parent, args, ctx) => {
+    resolve: async (query, _parent, args, ctx) => {
       try {
         return await ctx.prisma.user.create({
+          ...query,
           data: {
             email: args.input.email.toLowerCase().trim(),
             name: args.input.name?.trim() || null,
@@ -157,7 +144,7 @@ builder.mutationField('createUser', (t) =>
 );
 
 builder.mutationField('updateUser', (t) =>
-  t.field({
+  t.prismaField({
     type: UserType,
     nullable: true,
     description: 'Update an existing user',
@@ -168,7 +155,7 @@ builder.mutationField('updateUser', (t) =>
       }),
       input: t.arg({ type: UpdateUserInput, required: true }),
     },
-    resolve: async (_parent, args, ctx) => {
+    resolve: async (query, _parent, args, ctx) => {
       const data: { email?: string; name?: string | null } = {};
 
       if (args.input.email !== undefined && args.input.email !== null) {
@@ -186,6 +173,7 @@ builder.mutationField('updateUser', (t) =>
 
       try {
         return await ctx.prisma.user.update({
+          ...query,
           where: { id: args.id },
           data,
         });
@@ -197,7 +185,7 @@ builder.mutationField('updateUser', (t) =>
 );
 
 builder.mutationField('deleteUser', (t) =>
-  t.field({
+  t.prismaField({
     type: UserType,
     nullable: true,
     description: 'Delete a user',
@@ -207,9 +195,10 @@ builder.mutationField('deleteUser', (t) =>
         validate: idSchema,
       }),
     },
-    resolve: async (_parent, args, ctx) => {
+    resolve: async (query, _parent, args, ctx) => {
       try {
         return await ctx.prisma.user.delete({
+          ...query,
           where: { id: args.id },
         });
       } catch (error) {

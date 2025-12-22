@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { GraphQLError } from 'graphql';
 import { builder } from '../builder';
-import { UserType, UserData } from './user';
+import type { Media } from '../generated/prisma';
 
 // Zod validation schemas
 const titleSchema = z.string().min(1, 'Title is required').max(200, 'Title must be less than 200 characters');
@@ -14,30 +14,17 @@ const MediaTypeEnum = builder.enumType('MediaType', {
   values: ['IMAGE', 'VIDEO', 'AUDIO'] as const,
 });
 
-// Base media interface
-interface BaseMedia {
-  id: number;
-  type: 'IMAGE' | 'VIDEO' | 'AUDIO';
-  url: string;
-  postId: number;
-}
-
-interface ImageMedia extends BaseMedia {
+// Media interface for union types
+interface ImageMedia extends Media {
   type: 'IMAGE';
-  width: number | null;
-  height: number | null;
-  altText: string | null;
 }
 
-interface VideoMedia extends BaseMedia {
+interface VideoMedia extends Media {
   type: 'VIDEO';
-  duration: number | null;
 }
 
-interface AudioMedia extends BaseMedia {
+interface AudioMedia extends Media {
   type: 'AUDIO';
-  title: string | null;
-  duration: number | null;
 }
 
 type MediaUnion = ImageMedia | VideoMedia | AudioMedia;
@@ -93,21 +80,8 @@ const MediaUnionType = builder.unionType('Media', {
   },
 });
 
-// Post data type
-export interface PostData {
-  id: number;
-  title: string;
-  content: string | null;
-  published: boolean;
-  authorId: number;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-// Post type - exported for use in user schema
-export const PostType = builder.objectRef<PostData>('Post');
-
-builder.objectType(PostType, {
+// Post type - generated from Prisma model
+export const PostType = builder.prismaObject('Post', {
   description: 'A blog post',
   fields: (t) => ({
     id: t.exposeInt('id'),
@@ -122,15 +96,8 @@ builder.objectType(PostType, {
       type: 'String',
       resolve: (post) => post.updatedAt.toISOString(),
     }),
-    author: t.field({
-      type: UserType,
-      resolve: async (post, _args, ctx) => {
-        const user = await ctx.prisma.user.findUnique({
-          where: { id: post.authorId },
-        });
-        if (!user) throw new GraphQLError('Author not found');
-        return user as UserData;
-      },
+    author: t.relation('author', {
+      description: 'The author of this post',
     }),
     media: t.field({
       type: [MediaUnionType],
@@ -138,10 +105,7 @@ builder.objectType(PostType, {
         const mediaItems = await ctx.prisma.media.findMany({
           where: { postId: post.id },
         });
-        return mediaItems.map((m) => ({
-          ...m,
-          type: m.type as 'IMAGE' | 'VIDEO' | 'AUDIO',
-        }));
+        return mediaItems as MediaUnion[];
       },
     }),
   }),
@@ -200,14 +164,15 @@ function handlePrismaError(error: unknown): never {
 
 // Queries
 builder.queryField('posts', (t) =>
-  t.field({
+  t.prismaField({
     type: [PostType],
     description: 'Get all posts',
     args: {
       published: t.arg.boolean({ required: false }),
     },
-    resolve: async (_parent, args, ctx) => {
+    resolve: async (query, _parent, args, ctx) => {
       return ctx.prisma.post.findMany({
+        ...query,
         where: args.published !== null ? { published: args.published } : undefined,
         orderBy: { createdAt: 'desc' },
       });
@@ -216,15 +181,16 @@ builder.queryField('posts', (t) =>
 );
 
 builder.queryField('post', (t) =>
-  t.field({
+  t.prismaField({
     type: PostType,
     nullable: true,
     description: 'Get a post by ID',
     args: {
       id: t.arg.int({ required: true, validate: idSchema }),
     },
-    resolve: async (_parent, args, ctx) => {
+    resolve: async (query, _parent, args, ctx) => {
       return ctx.prisma.post.findUnique({
+        ...query,
         where: { id: args.id },
       });
     },
@@ -232,14 +198,15 @@ builder.queryField('post', (t) =>
 );
 
 builder.queryField('postsByAuthor', (t) =>
-  t.field({
+  t.prismaField({
     type: [PostType],
     description: 'Get posts by author ID',
     args: {
       authorId: t.arg.int({ required: true, validate: idSchema }),
     },
-    resolve: async (_parent, args, ctx) => {
+    resolve: async (query, _parent, args, ctx) => {
       return ctx.prisma.post.findMany({
+        ...query,
         where: { authorId: args.authorId },
         orderBy: { createdAt: 'desc' },
       });
@@ -249,15 +216,16 @@ builder.queryField('postsByAuthor', (t) =>
 
 // Mutations
 builder.mutationField('createPost', (t) =>
-  t.field({
+  t.prismaField({
     type: PostType,
     description: 'Create a new post',
     args: {
       input: t.arg({ type: CreatePostInput, required: true }),
     },
-    resolve: async (_parent, args, ctx) => {
+    resolve: async (query, _parent, args, ctx) => {
       try {
         return await ctx.prisma.post.create({
+          ...query,
           data: {
             title: args.input.title.trim(),
             content: args.input.content?.trim() || null,
@@ -273,7 +241,7 @@ builder.mutationField('createPost', (t) =>
 );
 
 builder.mutationField('updatePost', (t) =>
-  t.field({
+  t.prismaField({
     type: PostType,
     nullable: true,
     description: 'Update an existing post',
@@ -281,7 +249,7 @@ builder.mutationField('updatePost', (t) =>
       id: t.arg.int({ required: true, validate: idSchema }),
       input: t.arg({ type: UpdatePostInput, required: true }),
     },
-    resolve: async (_parent, args, ctx) => {
+    resolve: async (query, _parent, args, ctx) => {
       const data: { title?: string; content?: string | null; published?: boolean } = {};
 
       if (args.input.title !== undefined && args.input.title !== null) {
@@ -302,6 +270,7 @@ builder.mutationField('updatePost', (t) =>
 
       try {
         return await ctx.prisma.post.update({
+          ...query,
           where: { id: args.id },
           data,
         });
@@ -313,16 +282,17 @@ builder.mutationField('updatePost', (t) =>
 );
 
 builder.mutationField('deletePost', (t) =>
-  t.field({
+  t.prismaField({
     type: PostType,
     nullable: true,
     description: 'Delete a post',
     args: {
       id: t.arg.int({ required: true, validate: idSchema }),
     },
-    resolve: async (_parent, args, ctx) => {
+    resolve: async (query, _parent, args, ctx) => {
       try {
         return await ctx.prisma.post.delete({
+          ...query,
           where: { id: args.id },
         });
       } catch (error) {
@@ -333,7 +303,7 @@ builder.mutationField('deletePost', (t) =>
 );
 
 builder.mutationField('publishPost', (t) =>
-  t.field({
+  t.prismaField({
     type: PostType,
     nullable: true,
     description: 'Publish or unpublish a post',
@@ -341,9 +311,10 @@ builder.mutationField('publishPost', (t) =>
       id: t.arg.int({ required: true, validate: idSchema }),
       published: t.arg.boolean({ required: true }),
     },
-    resolve: async (_parent, args, ctx) => {
+    resolve: async (query, _parent, args, ctx) => {
       try {
         return await ctx.prisma.post.update({
+          ...query,
           where: { id: args.id },
           data: { published: args.published },
         });
@@ -377,10 +348,7 @@ builder.mutationField('addMediaToPost', (t) =>
             title: args.input.title,
           },
         });
-        return {
-          ...media,
-          type: media.type as 'IMAGE' | 'VIDEO' | 'AUDIO',
-        };
+        return media as MediaUnion;
       } catch (error) {
         handlePrismaError(error);
       }
