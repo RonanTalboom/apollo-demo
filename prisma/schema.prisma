@@ -16,4 +16,39 @@ model User {
   id    Int     @id @default(autoincrement())
   email String  @unique
   name  String?
+  posts Post[]
+}
+
+model Post {
+  id        Int      @id @default(autoincrement())
+  title     String
+  content   String?
+  published Boolean  @default(false)
+  authorId  Int
+  author    User     @relation(fields: [authorId], references: [id])
+  media     Media[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Media {
+  id       Int       @id @default(autoincrement())
+  type     MediaType
+  url      String
+  postId   Int
+  post     Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
+  // Image specific
+  width    Int?
+  height   Int?
+  altText  String?
+  // Video specific
+  duration Int?      // in seconds
+  // Audio specific
+  title    String?   @map("audio_title")
+}
+
+enum MediaType {
+  IMAGE
+  VIDEO
+  AUDIO
 }

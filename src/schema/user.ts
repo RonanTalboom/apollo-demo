@@ -7,21 +7,15 @@ const emailSchema = z.string().email('Invalid email format').max(255, 'Email mus
 const nameSchema = z.string().max(100, 'Name must be less than 100 characters').nullish();
 const idSchema = z.number().int().positive('ID must be a positive integer');
 
-// Define User type
-const UserType = builder.objectRef<{
+// User data type
+export interface UserData {
   id: number;
   email: string;
   name: string | null;
-}>('User');
+}
 
-builder.objectType(UserType, {
-  description: 'A user in the system',
-  fields: (t) => ({
-    id: t.exposeInt('id'),
-    email: t.exposeString('email'),
-    name: t.exposeString('name', { nullable: true }),
-  }),
-});
+// Define User type - exported for use in other schemas
+export const UserType = builder.objectRef<UserData>('User');
 
 // Input types
 const CreateUserInput = builder.inputType('CreateUserInput', {
@@ -66,6 +60,28 @@ function handlePrismaError(error: unknown): never {
     }
   }
   throw error;
+}
+
+// Register User object type - fields added after Post is defined
+export function registerUserType(PostType: ReturnType<typeof builder.objectRef>) {
+  builder.objectType(UserType, {
+    description: 'A user in the system',
+    fields: (t) => ({
+      id: t.exposeInt('id'),
+      email: t.exposeString('email'),
+      name: t.exposeString('name', { nullable: true }),
+      posts: t.field({
+        type: [PostType],
+        description: 'Posts authored by this user',
+        resolve: async (user, _args, ctx) => {
+          return ctx.prisma.post.findMany({
+            where: { authorId: user.id },
+            orderBy: { createdAt: 'desc' },
+          });
+        },
+      }),
+    }),
+  });
 }
 
 // Queries
