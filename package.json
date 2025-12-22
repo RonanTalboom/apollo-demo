@@ -3,7 +3,8 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "postinstall": "prisma generate",
+    "generate": "prisma generate && graphql-codegen",
+    "postinstall": "npm run generate",
     "predeploy": "wrangler d1 migrations apply DB --remote",
     "deploy": "wrangler deploy",
     "dev": "wrangler dev",
@@ -13,6 +14,9 @@
   },
   "devDependencies": {
     "@cloudflare/vitest-pool-workers": "^0.8.19",
+    "@graphql-codegen/cli": "^6.1.0",
+    "@graphql-codegen/typescript": "^5.0.7",
+    "@graphql-codegen/typescript-resolvers": "^5.1.5",
     "prisma": "^5.22.0",
     "typescript": "^5.5.2",
     "vitest": "~3.0.7",

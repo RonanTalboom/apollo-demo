@@ -173,3 +173,4 @@ dist
 
 /src/generated/prisma
 /src/generated/zod
+/src/generated/graphql

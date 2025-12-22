@@ -2,6 +2,7 @@ import { GraphQLError } from 'graphql';
 import { z } from 'zod';
 import { PrismaClient } from './generated/prisma';
 import { UserCreateInputSchema, UserUpdateInputSchema } from './generated/zod';
+import type { Resolvers } from './generated/graphql/types';
 
 export interface Context {
   prisma: PrismaClient;
@@ -43,18 +44,18 @@ function handlePrismaError(error: unknown): never {
   throw error;
 }
 
-export const resolvers = {
+export const resolvers: Resolvers = {
   Query: {
-    users: async (_parent: unknown, _args: unknown, context: Context) => {
+    users: async (_parent, _args, context) => {
       return context.prisma.user.findMany();
     },
-    user: async (_parent: unknown, args: { id: number }, context: Context) => {
+    user: async (_parent, args, context) => {
       validate(IdSchema, args.id);
       return context.prisma.user.findUnique({
         where: { id: args.id },
       });
     },
-    userByEmail: async (_parent: unknown, args: { email: string }, context: Context) => {
+    userByEmail: async (_parent, args, context) => {
       const { email } = validate(UserCreateInputSchema.pick({ email: true }), { email: args.email });
       return context.prisma.user.findUnique({
         where: { email: email.toLowerCase().trim() },
@@ -62,11 +63,7 @@ export const resolvers = {
     },
   },
   Mutation: {
-    createUser: async (
-      _parent: unknown,
-      args: { input: { email: string; name?: string } },
-      context: Context
-    ) => {
+    createUser: async (_parent, args, context) => {
       const input = validate(UserCreateInputSchema, args.input);
 
       try {
@@ -80,11 +77,7 @@ export const resolvers = {
         handlePrismaError(error);
       }
     },
-    updateUser: async (
-      _parent: unknown,
-      args: { id: number; input: { email?: string; name?: string } },
-      context: Context
-    ) => {
+    updateUser: async (_parent, args, context) => {
       validate(IdSchema, args.id);
       const input = validate(UserUpdateInputSchema, args.input);
 
@@ -112,7 +105,7 @@ export const resolvers = {
         handlePrismaError(error);
       }
     },
-    deleteUser: async (_parent: unknown, args: { id: number }, context: Context) => {
+    deleteUser: async (_parent, args, context) => {
       validate(IdSchema, args.id);
 
       try {
