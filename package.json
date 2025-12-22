@@ -3,8 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "generate": "prisma generate && graphql-codegen",
-    "postinstall": "npm run generate",
+    "postinstall": "prisma generate",
     "predeploy": "wrangler d1 migrations apply DB --remote",
     "deploy": "wrangler deploy",
     "dev": "wrangler dev",
@@ -14,21 +13,18 @@
   },
   "devDependencies": {
     "@cloudflare/vitest-pool-workers": "^0.8.19",
-    "@graphql-codegen/cli": "^6.1.0",
-    "@graphql-codegen/typescript": "^5.0.7",
-    "@graphql-codegen/typescript-resolvers": "^5.1.5",
     "prisma": "^5.22.0",
     "typescript": "^5.5.2",
     "vitest": "~3.0.7",
-    "wrangler": "^4.18.0",
-    "zod-prisma-types": "^3.3.10"
+    "wrangler": "^4.18.0"
   },
   "dependencies": {
     "@apollo/server": "^5.2.0",
+    "@pothos/core": "^4.10.0",
+    "@pothos/plugin-validation": "^4.2.0",
     "@prisma/adapter-d1": "^5.22.0",
     "@prisma/client": "^5.22.0",
     "graphql": "^16.12.0",
-    "graphql-tag": "^2.12.6",
-    "zod": "^4.2.1"
+    "zod": "^3.25.76"
   }
 }

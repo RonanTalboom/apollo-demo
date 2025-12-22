@@ -2,16 +2,15 @@ import { ApolloServer, HeaderMap } from '@apollo/server';
 import { ApolloServerPluginLandingPageLocalDefault } from '@apollo/server/plugin/landingPage/default';
 import { PrismaClient } from './generated/prisma';
 import { PrismaD1 } from '@prisma/adapter-d1';
-import { typeDefs } from './schema';
-import { resolvers, Context } from './resolvers';
+import { schema } from './schema';
+import type { Context } from './builder';
 
 export interface Env {
   DB: D1Database;
 }
 
 const server = new ApolloServer<Context>({
-  typeDefs,
-  resolvers,
+  schema,
   plugins: [
     ApolloServerPluginLandingPageLocalDefault({ embed: true }),
   ],

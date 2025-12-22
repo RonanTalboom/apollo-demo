@@ -7,24 +7,13 @@ generator client {
   previewFeatures = ["driverAdapters"]
 }
 
-generator zod {
-  provider                         = "zod-prisma-types"
-  output                           = "../src/generated/zod"
-  createInputTypes                 = true
-  addInputTypeValidation           = true
-  createOptionalDefaultValuesTypes = true
-}
-
 datasource db {
   provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
-/// @zod.import(["import { z } from 'zod'"])
 model User {
   id    Int     @id @default(autoincrement())
-  /// @zod.string.email({ message: "Invalid email format" }).max(255, { message: "Email must be less than 255 characters" })
   email String  @unique
-  /// @zod.string.max(100, { message: "Name must be less than 100 characters" }).nullish()
   name  String?
 }
