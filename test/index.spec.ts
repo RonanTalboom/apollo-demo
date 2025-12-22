@@ -14,15 +14,15 @@ describe('Apollo GraphQL Server', () => {
     expect(await response.text()).toBe('OK');
   });
 
-  it('shows landing page for GET without query', async () => {
+  it('shows Apollo Sandbox for GET without query', async () => {
     const request = new IncomingRequest('http://example.com/');
     const ctx = createExecutionContext();
     const response = await worker.fetch(request, env, ctx);
     await waitOnExecutionContext(ctx);
     expect(response.status).toBe(200);
-    expect(response.headers.get('Content-Type')).toBe('text/html');
+    expect(response.headers.get('Content-Type')).toContain('text/html');
     const html = await response.text();
-    expect(html).toContain('Apollo GraphQL Server');
+    expect(html).toContain('sandbox');
   });
 
   it('returns 404 for unknown paths', async () => {
