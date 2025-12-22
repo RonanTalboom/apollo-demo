@@ -38,23 +38,17 @@ model Post {
 }
 
 model Media {
-  id       Int       @id @default(autoincrement())
-  type     MediaType
+  id       Int    @id @default(autoincrement())
+  type     String // IMAGE, VIDEO, or AUDIO
   url      String
   postId   Int
-  post     Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
+  post     Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
   // Image specific
   width    Int?
   height   Int?
   altText  String?
   // Video specific
-  duration Int?      // in seconds
+  duration Int?   // in seconds
   // Audio specific
-  title    String?   @map("audio_title")
-}
-
-enum MediaType {
-  IMAGE
-  VIDEO
-  AUDIO
+  title    String? @map("audio_title")
 }

@@ -14,19 +14,10 @@ const MediaTypeEnum = builder.enumType('MediaType', {
   values: ['IMAGE', 'VIDEO', 'AUDIO'] as const,
 });
 
-// Media interface for union types
-interface ImageMedia extends Media {
-  type: 'IMAGE';
-}
-
-interface VideoMedia extends Media {
-  type: 'VIDEO';
-}
-
-interface AudioMedia extends Media {
-  type: 'AUDIO';
-}
-
+// Media type literals for union discrimination
+type ImageMedia = Media & { type: 'IMAGE' };
+type VideoMedia = Media & { type: 'VIDEO' };
+type AudioMedia = Media & { type: 'AUDIO' };
 type MediaUnion = ImageMedia | VideoMedia | AudioMedia;
 
 // Define Image type
