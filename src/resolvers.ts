@@ -1,59 +1,38 @@
 import { GraphQLError } from 'graphql';
+import { z } from 'zod';
 import { PrismaClient } from './generated/prisma';
+import { UserCreateInputSchema, UserUpdateInputSchema } from './generated/zod';
 
 export interface Context {
   prisma: PrismaClient;
 }
 
-// Validation helpers
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-function validateEmail(email: string): void {
-  if (!email || email.trim().length === 0) {
-    throw new GraphQLError('Email is required', {
-      extensions: { code: 'BAD_USER_INPUT', field: 'email' },
+// Validate input using Zod schema and throw GraphQL errors
+function validate<T>(schema: z.ZodSchema<T>, data: unknown): T {
+  const result = schema.safeParse(data);
+  if (!result.success) {
+    const error = result.error.errors[0];
+    throw new GraphQLError(error.message, {
+      extensions: {
+        code: 'BAD_USER_INPUT',
+        field: error.path.join('.'),
+      },
     });
   }
-  if (!EMAIL_REGEX.test(email)) {
-    throw new GraphQLError('Invalid email format', {
-      extensions: { code: 'BAD_USER_INPUT', field: 'email' },
-    });
-  }
-  if (email.length > 255) {
-    throw new GraphQLError('Email must be less than 255 characters', {
-      extensions: { code: 'BAD_USER_INPUT', field: 'email' },
-    });
-  }
+  return result.data;
 }
 
-function validateName(name: string | undefined | null): void {
-  if (name !== undefined && name !== null) {
-    if (name.length > 100) {
-      throw new GraphQLError('Name must be less than 100 characters', {
-        extensions: { code: 'BAD_USER_INPUT', field: 'name' },
-      });
-    }
-  }
-}
-
-function validateId(id: number): void {
-  if (!Number.isInteger(id) || id <= 0) {
-    throw new GraphQLError('ID must be a positive integer', {
-      extensions: { code: 'BAD_USER_INPUT', field: 'id' },
-    });
-  }
-}
+// ID validation schema
+const IdSchema = z.number().int().positive({ message: 'ID must be a positive integer' });
 
 // Handle Prisma errors
 function handlePrismaError(error: unknown): never {
   if (error instanceof Error) {
-    // Prisma unique constraint violation
     if (error.message.includes('Unique constraint')) {
       throw new GraphQLError('A user with this email already exists', {
         extensions: { code: 'CONFLICT', field: 'email' },
       });
     }
-    // Prisma record not found
     if (error.message.includes('Record to update not found') ||
         error.message.includes('Record to delete does not exist')) {
       throw new GraphQLError('User not found', {
@@ -70,15 +49,15 @@ export const resolvers = {
       return context.prisma.user.findMany();
     },
     user: async (_parent: unknown, args: { id: number }, context: Context) => {
-      validateId(args.id);
+      validate(IdSchema, args.id);
       return context.prisma.user.findUnique({
         where: { id: args.id },
       });
     },
     userByEmail: async (_parent: unknown, args: { email: string }, context: Context) => {
-      validateEmail(args.email);
+      const { email } = validate(UserCreateInputSchema.pick({ email: true }), { email: args.email });
       return context.prisma.user.findUnique({
-        where: { email: args.email.toLowerCase().trim() },
+        where: { email: email.toLowerCase().trim() },
       });
     },
   },
@@ -88,15 +67,13 @@ export const resolvers = {
       args: { input: { email: string; name?: string } },
       context: Context
     ) => {
-      const email = args.input.email.toLowerCase().trim();
-      validateEmail(email);
-      validateName(args.input.name);
+      const input = validate(UserCreateInputSchema, args.input);
 
       try {
         return await context.prisma.user.create({
           data: {
-            email,
-            name: args.input.name?.trim() || null,
+            email: input.email.toLowerCase().trim(),
+            name: input.name?.trim() || null,
           },
         });
       } catch (error) {
@@ -108,19 +85,16 @@ export const resolvers = {
       args: { id: number; input: { email?: string; name?: string } },
       context: Context
     ) => {
-      validateId(args.id);
+      validate(IdSchema, args.id);
+      const input = validate(UserUpdateInputSchema, args.input);
 
       const data: { email?: string; name?: string | null } = {};
 
-      if (args.input.email !== undefined) {
-        const email = args.input.email.toLowerCase().trim();
-        validateEmail(email);
-        data.email = email;
+      if (input.email !== undefined) {
+        data.email = input.email.toLowerCase().trim();
       }
-
-      if (args.input.name !== undefined) {
-        validateName(args.input.name);
-        data.name = args.input.name?.trim() || null;
+      if (input.name !== undefined) {
+        data.name = input.name?.trim() || null;
       }
 
       if (Object.keys(data).length === 0) {
@@ -139,7 +113,7 @@ export const resolvers = {
       }
     },
     deleteUser: async (_parent: unknown, args: { id: number }, context: Context) => {
-      validateId(args.id);
+      validate(IdSchema, args.id);
 
       try {
         return await context.prisma.user.delete({

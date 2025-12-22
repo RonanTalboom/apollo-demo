@@ -16,13 +16,15 @@
     "prisma": "^5.22.0",
     "typescript": "^5.5.2",
     "vitest": "~3.0.7",
-    "wrangler": "^4.18.0"
+    "wrangler": "^4.18.0",
+    "zod-prisma-types": "^3.3.10"
   },
   "dependencies": {
     "@apollo/server": "^5.2.0",
     "@prisma/adapter-d1": "^5.22.0",
     "@prisma/client": "^5.22.0",
     "graphql": "^16.12.0",
-    "graphql-tag": "^2.12.6"
+    "graphql-tag": "^2.12.6",
+    "zod": "^4.2.1"
   }
 }

@@ -172,3 +172,4 @@ dist
 .wrangler/
 
 /src/generated/prisma
+/src/generated/zod
