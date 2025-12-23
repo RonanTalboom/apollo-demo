@@ -1,8 +1,9 @@
 import { builder } from '../builder';
+import { registerPostType } from './user';
+import { PostType } from './post';
 
-// Import schema definitions - Prisma plugin handles circular dependencies automatically
-import './user';
-import './post';
+// Register Post type with User to resolve circular dependency
+registerPostType(PostType);
 
 // Build and export the schema
 export const schema = builder.toSchema();
