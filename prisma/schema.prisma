@@ -46,3 +46,21 @@ model Media {
   // Audio specific
   title    String? @map("audio_title")
 }
+
+model Site {
+  id        Int      @id @default(autoincrement())
+  name      String
+  addressId Int      @unique
+  address   Address  @relation(fields: [addressId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Address {
+  id       Int     @id @default(autoincrement())
+  street   String
+  city     String
+  zip      String?
+  country  String
+  site     Site?
+}
