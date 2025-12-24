@@ -20,11 +20,9 @@
   },
   "dependencies": {
     "@apollo/server": "^5.2.0",
-    "@pothos/core": "^4.10.0",
-    "@pothos/plugin-validation": "^4.2.0",
+    "@graphql-tools/schema": "^10.0.30",
     "@prisma/adapter-d1": "^5.22.0",
     "@prisma/client": "^5.22.0",
-    "graphql": "^16.12.0",
-    "zod": "^3.25.76"
+    "graphql": "^16.12.0"
   }
 }

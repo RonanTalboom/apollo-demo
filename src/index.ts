@@ -1,13 +1,176 @@
 import { ApolloServer, HeaderMap } from '@apollo/server';
 import { ApolloServerPluginLandingPageLocalDefault } from '@apollo/server/plugin/landingPage/default';
+import { makeExecutableSchema } from '@graphql-tools/schema';
 import { PrismaClient } from './generated/prisma';
 import { PrismaD1 } from '@prisma/adapter-d1';
-import { schema } from './schema';
-import type { Context } from './builder';
+import { resolvers, Context } from './resolvers';
 
 export interface Env {
   DB: D1Database;
 }
+
+// GraphQL Schema (SDL)
+const typeDefs = /* GraphQL */ `
+  type Query {
+    # Users
+    users: [User!]!
+    user(id: Int!): User
+    userByEmail(email: String!): User
+
+    # Posts
+    posts(published: Boolean): [Post!]!
+    post(id: Int!): Post
+    postsByAuthor(authorId: Int!): [Post!]!
+
+    # Sites
+    sites: [Site!]!
+    site(id: Int!): Site
+  }
+
+  type Mutation {
+    # Users
+    createUser(input: CreateUserInput!): User!
+    updateUser(id: Int!, input: UpdateUserInput!): User
+    deleteUser(id: Int!): User
+
+    # Posts
+    createPost(input: CreatePostInput!): Post!
+    updatePost(id: Int!, input: UpdatePostInput!): Post
+    deletePost(id: Int!): Post
+    publishPost(id: Int!, published: Boolean!): Post
+
+    # Media
+    addMediaToPost(postId: Int!, input: CreateMediaInput!): Media!
+    removeMediaFromPost(mediaId: Int!): Boolean!
+
+    # Sites
+    createSite(input: CreateSiteInput!): Site!
+    updateSite(id: Int!, input: UpdateSiteInput!): Site
+    deleteSite(id: Int!): Site
+  }
+
+  type User {
+    id: Int!
+    email: String!
+    name: String
+    posts: [Post!]!
+  }
+
+  input CreateUserInput {
+    email: String!
+    name: String
+  }
+
+  input UpdateUserInput {
+    email: String
+    name: String
+  }
+
+  type Post {
+    id: Int!
+    title: String!
+    content: String
+    published: Boolean!
+    createdAt: String!
+    updatedAt: String!
+    author: User!
+    media: [Media!]!
+  }
+
+  input CreatePostInput {
+    title: String!
+    content: String
+    published: Boolean
+    authorId: Int!
+  }
+
+  input UpdatePostInput {
+    title: String
+    content: String
+    published: Boolean
+  }
+
+  enum MediaType {
+    IMAGE
+    VIDEO
+    AUDIO
+  }
+
+  union Media = Image | Video | Audio
+
+  type Image {
+    id: Int!
+    url: String!
+    width: Int
+    height: Int
+    altText: String
+  }
+
+  type Video {
+    id: Int!
+    url: String!
+    duration: Int
+  }
+
+  type Audio {
+    id: Int!
+    url: String!
+    title: String
+    duration: Int
+  }
+
+  input CreateMediaInput {
+    type: MediaType!
+    url: String!
+    width: Int
+    height: Int
+    altText: String
+    duration: Int
+    title: String
+  }
+
+  type Site {
+    id: Int!
+    name: String!
+    createdAt: String!
+    updatedAt: String!
+    address: Address!
+  }
+
+  type Address {
+    id: Int!
+    street: String!
+    city: String!
+    zip: String
+    country: String!
+  }
+
+  input CreateAddressInput {
+    street: String!
+    city: String!
+    zip: String
+    country: String!
+  }
+
+  input CreateSiteInput {
+    name: String!
+    address: CreateAddressInput!
+  }
+
+  input UpdateAddressInput {
+    street: String
+    city: String
+    zip: String
+    country: String
+  }
+
+  input UpdateSiteInput {
+    name: String
+    address: UpdateAddressInput
+  }
+`;
+
+const schema = makeExecutableSchema({ typeDefs, resolvers });
 
 const server = new ApolloServer<Context>({
   schema,
@@ -76,7 +239,7 @@ export default {
       }
     }
 
-    // Execute the GraphQL request (Apollo handles landing page for empty GET)
+    // Execute the GraphQL request
     const httpGraphQLResponse = await server.executeHTTPGraphQLRequest({
       httpGraphQLRequest: {
         method: request.method,
@@ -99,7 +262,6 @@ export default {
     if (httpGraphQLResponse.body.kind === 'complete') {
       responseBody = httpGraphQLResponse.body.string;
     } else {
-      // Handle async iterator for subscriptions (not commonly used in Workers)
       const chunks: string[] = [];
       for await (const chunk of httpGraphQLResponse.body.asyncIterator) {
         chunks.push(chunk);
