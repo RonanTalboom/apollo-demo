@@ -23,6 +23,7 @@
     "@graphql-tools/schema": "^10.0.30",
     "@prisma/adapter-d1": "^5.22.0",
     "@prisma/client": "^5.22.0",
+    "dataloader": "^2.2.3",
     "graphql": "^16.12.0"
   }
 }
