@@ -4,6 +4,9 @@ import { makeExecutableSchema } from '@graphql-tools/schema';
 import { PrismaClient } from './generated/prisma';
 import { PrismaD1 } from '@prisma/adapter-d1';
 import { resolvers, Context } from './resolvers';
+import { createLoaders } from './loaders';
+import { createMediator } from './mediator';
+import { UserService, PostService, SiteService } from './services';
 
 export interface Env {
   DB: D1Database;
@@ -239,6 +242,32 @@ export default {
       }
     }
 
+    // Create loaders (per-request for proper caching isolation)
+    const loaders = createLoaders(prisma);
+
+    // Create services (stateless, can be reused)
+    const services = {
+      users: new UserService(),
+      posts: new PostService(),
+      sites: new SiteService(),
+    };
+
+    // Extract user from Authorization header (implement your auth logic)
+    // Example: const user = await validateToken(request.headers.get('Authorization'));
+    const user = undefined; // TODO: Implement authentication
+
+    // Create mediator for cross-service operations
+    const mediator = createMediator(prisma, user);
+
+    // Build context with all dependencies
+    const context: Context = {
+      prisma,
+      loaders,
+      services,
+      mediator,
+      user,
+    };
+
     // Execute the GraphQL request
     const httpGraphQLResponse = await server.executeHTTPGraphQLRequest({
       httpGraphQLRequest: {
@@ -247,7 +276,7 @@ export default {
         search: url.search,
         body,
       },
-      context: async () => ({ prisma }),
+      context: async () => context,
     });
 
     // Build the response
