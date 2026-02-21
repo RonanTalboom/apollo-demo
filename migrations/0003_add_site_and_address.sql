@@ -1,0 +1,18 @@
+-- CreateTable
+CREATE TABLE "Address" (
+    "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    "street" TEXT NOT NULL,
+    "city" TEXT NOT NULL,
+    "zip" TEXT,
+    "country" TEXT NOT NULL
+);
+
+-- CreateTable
+CREATE TABLE "Site" (
+    "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    "name" TEXT NOT NULL,
+    "addressId" INTEGER NOT NULL UNIQUE,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL,
+    CONSTRAINT "Site_addressId_fkey" FOREIGN KEY ("addressId") REFERENCES "Address" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+);
